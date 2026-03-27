@@ -1,17 +1,27 @@
 # RunWars - GPS Territory Tracker
 
 ## Overview
-A React Native Expo app that converts real-time GPS movement into H3 hexagonal tiles, visually showing captured territory on a dark-themed map with Apple glass-style UI.
+Premium fitness + territory game (Strava × game hybrid). Converts real-time GPS movement into H3 hex tiles on a dark-themed map with Apple glass-style UI, stats tracking, and mock social clubs.
 
-## Critical Fix Applied
-**h3-js "Unknown encoding: utf-16le" crash** — Root cause: h3-js uses Emscripten-compiled WASM code that calls `new TextDecoder("utf-16le")` at module init (line 368 in h3-js.js). Hermes (React Native JS engine) only supports utf-8 in TextDecoder. Fix: Direct source patch wrapping the call in try-catch. `UTF16Decoder` is declared but never used in h3-js, making the patch safe. A postinstall script (`scripts/patch-h3.sh`) ensures the patch survives `yarn install`.
+## Features
+- **GPS Tracking**: High-accuracy foreground location (expo-location, watchPosition)
+- **H3 Hex Capture**: Resolution 9, ref-based dedup, animated capture flash
+- **Trail Path**: Polyline of last 50 GPS points
+- **Live Stats**: Distance (haversine), elapsed time, speed (km/h)
+- **Dashboard**: Stats cards, activity summary, Map/Dashboard tab toggle
+- **Mock Clubs**: Downtown Runners + Hex Hunters with leaderboards
+- **Dark Map**: Custom Google Maps style, blue dot marker with pulse
+- **Glass UI**: Semi-transparent dark panels, subtle borders, consistent theme
 
 ## Architecture
-- `app/index.tsx` — Business logic + TextDecoder shim import
-- `shims/textdecoder.ts` — Fallback TextDecoder polyfill for utf-16le
-- `components/HexMap.tsx` — Native map with dark theme + glass overlays
-- `components/HexMap.web.tsx` — Web fallback  
+- `app/index.tsx` — All business logic, state management, GPS processing
+- `components/HexMap.tsx` — Native map + dashboard + animations + overlays
+- `components/HexMap.web.tsx` — Web fallback with full dashboard
+- `shims/textdecoder.ts` — Hermes TextDecoder utf-16le polyfill
 - `scripts/patch-h3.sh` — Postinstall h3-js patch for Hermes
 
+## h3-js Fix
+Patched `new TextDecoder("utf-16le")` → try-catch in all h3-js dist files. UTF16Decoder is declared but never used, making patch safe. Postinstall script auto-applies on `yarn install`.
+
 ## Dependencies
-- expo-location@19.0.8, react-native-maps@1.20.1, h3-js@4.4.0, text-encoding-polyfill@0.6.7
+expo-location, react-native-maps, h3-js (patched), text-encoding-polyfill, @expo/vector-icons (Ionicons)

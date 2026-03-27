@@ -233,7 +233,7 @@ export default function HexMap({
       {/* Stats grid */}
       <View style={s.statsGrid}>
         <View style={s.statsCard}>
-          <Ionicons name="hexagon-outline" size={22} color="#60A5FA" />
+          <Ionicons name="cube-outline" size={22} color="#60A5FA" />
           <Text style={s.cardVal}>{hexCount}</Text>
           <Text style={s.cardLbl}>Hexes</Text>
         </View>
