@@ -1,12 +1,12 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import * as Location from 'expo-location';
-import { latLngToCell, cellToBoundary } from 'h3-js';
+import * as h3 from 'h3-js';
 import HexMap from '../components/HexMap';
 
 const H3_RESOLUTION = 9;
 
-interface HexPoly {
+export interface HexPoly {
   id: string;
   coordinates: { latitude: number; longitude: number }[];
 }
@@ -14,30 +14,35 @@ interface HexPoly {
 export default function Index() {
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [visitedHexIds, setVisitedHexIds] = useState<Set<string>>(new Set());
+  const [hexPolygons, setHexPolygons] = useState<HexPoly[]>([]);
+  const [hexCount, setHexCount] = useState(0);
   const mapRef = useRef<any>(null);
-
-  const hexPolygons: HexPoly[] = useMemo(() => {
-    return Array.from(visitedHexIds).map((h3Index) => {
-      const boundary = cellToBoundary(h3Index);
-      return {
-        id: h3Index,
-        coordinates: boundary.map(([lat, lng]: [number, number]) => ({
-          latitude: lat,
-          longitude: lng,
-        })),
-      };
-    });
-  }, [visitedHexIds]);
+  const visitedRef = useRef<Set<string>>(new Set());
+  const lastHexRef = useRef<string | null>(null);
 
   const processH3 = useCallback((lat: number, lng: number) => {
-    const h3Index = latLngToCell(lat, lng, H3_RESOLUTION);
-    setVisitedHexIds((prev) => {
-      if (prev.has(h3Index)) return prev;
-      const next = new Set(prev);
-      next.add(h3Index);
-      return next;
-    });
+    try {
+      const hexId = h3.latLngToCell(lat, lng, H3_RESOLUTION);
+
+      // Skip if same hex as last check (most common case)
+      if (hexId === lastHexRef.current) return;
+      lastHexRef.current = hexId;
+
+      // Skip if already visited
+      if (visitedRef.current.has(hexId)) return;
+      visitedRef.current.add(hexId);
+
+      const boundary = h3.cellToBoundary(hexId);
+      const coordinates = boundary.map(([bLat, bLng]: [number, number]) => ({
+        latitude: bLat,
+        longitude: bLng,
+      }));
+
+      setHexPolygons((prev) => [...prev, { id: hexId, coordinates }]);
+      setHexCount(visitedRef.current.size);
+    } catch (e) {
+      // h3 computation failed silently — don't crash the app
+    }
   }, []);
 
   useEffect(() => {
@@ -92,8 +97,8 @@ export default function Index() {
   if (errorMsg) {
     return (
       <View testID="error-screen" style={styles.centerContainer}>
-        <View style={styles.errorCard}>
-          <Text style={styles.errorIcon}>⚠</Text>
+        <View style={styles.glassCard}>
+          <Text testID="error-icon" style={styles.errorIcon}>⚠</Text>
           <Text testID="error-message" style={styles.errorText}>{errorMsg}</Text>
           <Text style={styles.errorHint}>
             Please enable location in your device settings.
@@ -106,8 +111,10 @@ export default function Index() {
   if (!location) {
     return (
       <View testID="loading-screen" style={styles.centerContainer}>
-        <ActivityIndicator testID="loading-indicator" size="large" color="#3B82F6" />
-        <Text style={styles.loadingText}>Acquiring GPS signal...</Text>
+        <View style={styles.glassCard}>
+          <ActivityIndicator testID="loading-indicator" size="large" color="#60A5FA" />
+          <Text style={styles.loadingText}>Acquiring GPS signal...</Text>
+        </View>
       </View>
     );
   }
@@ -118,7 +125,7 @@ export default function Index() {
       latitude={location.coords.latitude}
       longitude={location.coords.longitude}
       hexPolygons={hexPolygons}
-      hexCount={visitedHexIds.size}
+      hexCount={hexCount}
     />
   );
 }
@@ -128,35 +135,38 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#0f172a',
+    backgroundColor: '#080C14',
     paddingHorizontal: 24,
   },
-  errorCard: {
-    backgroundColor: '#1e293b',
-    borderRadius: 16,
+  glassCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     padding: 32,
     alignItems: 'center',
     width: '100%',
-    maxWidth: 340,
+    maxWidth: 320,
   },
   errorIcon: {
-    fontSize: 40,
+    fontSize: 36,
     marginBottom: 16,
   },
   errorText: {
-    color: '#f87171',
-    fontSize: 16,
+    color: '#FCA5A5',
+    fontSize: 15,
     fontWeight: '600',
     textAlign: 'center',
+    lineHeight: 22,
     marginBottom: 8,
   },
   errorHint: {
-    color: '#94a3b8',
+    color: 'rgba(255, 255, 255, 0.4)',
     fontSize: 13,
     textAlign: 'center',
   },
   loadingText: {
-    color: '#94a3b8',
+    color: 'rgba(255, 255, 255, 0.5)',
     fontSize: 14,
     marginTop: 16,
   },
