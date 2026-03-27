@@ -1,4 +1,4 @@
-import 'text-encoding-polyfill';
+import '../shims/textdecoder';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import * as Location from 'expo-location';
